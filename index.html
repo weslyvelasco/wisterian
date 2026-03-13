@@ -36,6 +36,7 @@
             display: flex; justify-content: space-between; align-items: center;
             padding: 20px 8%; position: fixed; width: 100%; top: 0; z-index: 100;
             background: rgba(3, 0, 20, 0.8); backdrop-filter: blur(15px); border-bottom: 1px solid var(--border);
+            box-sizing: border-box;
         }
         .nav a { color: var(--text-dim); text-decoration: none; margin-left: 25px; font-size: 14px; transition: 0.3s; }
         .nav a:hover { color: var(--primary); }
@@ -60,7 +61,7 @@
         }
         .admin-box { background: rgba(255,255,255,0.03); padding: 15px; border-radius: 10px; margin-bottom: 15px; border: 1px solid var(--border); }
         h4 { margin: 0 0 10px 0; font-size: 12px; color: var(--primary); letter-spacing: 1px; }
-        input, textarea { width: 100%; background: #16142e; border: 1px solid var(--border); color: white; padding: 10px; border-radius: 6px; margin-bottom: 8px; font-size: 13px; }
+        input, textarea { width: 100%; background: #16142e; border: 1px solid var(--border); color: white; padding: 10px; border-radius: 6px; margin-bottom: 8px; font-size: 13px; box-sizing: border-box; }
         .btn { background: var(--primary); color: white; border: none; padding: 12px; border-radius: 8px; cursor: pointer; width: 100%; font-weight: 700; transition: 0.3s; }
         .btn-sm { padding: 6px 12px; font-size: 11px; margin-top: 5px; }
 
@@ -76,7 +77,7 @@
 <div id="viewer" onclick="this.style.display='none'"><img id="viewerImg" src=""></div>
 
 <div id="entry">
-    <h1 style="font-size: 50px; font-weight: 800;">Wisterian</h1>
+    <h1 style="font-size: 50px; font-weight: 800; margin-bottom: 20px;">Wisterian</h1>
     <div style="display: flex; gap: 15px;">
         <button class="btn" onclick="start(false)" style="width: 140px;">View Site</button>
         <button class="btn" onclick="start(true)" style="width: 140px; background: #16142e; border: 1px solid var(--primary);">Admin</button>
@@ -157,15 +158,13 @@
         <div id="deleteList" style="font-size: 11px;"></div>
     </div>
 
-    <button class="btn" style="margin-bottom: 8px;" onclick="save()">1. Save Changes Locally</button>
-    <button class="btn" style="background: #22c55e;" onclick="exportCode()">2. Export Updated File</button>
+    <button class="btn" style="margin-bottom: 8px;" onclick="save()">1. Save Progress (Local)</button>
+    <button class="btn" style="background: #22c55e;" onclick="exportCode()">2. Export Final File</button>
 </div>
 
 <script src="https://unpkg.com/aos@2.3.1/dist/aos.js"></script>
 <script id="masterScript">
-    AOS.init();
-    
-    // THE MASTER DATA - DO NOT DELETE THIS COMMENT
+    // --- MASTER DATA SECTION ---
     let data = {
         title: "Wisterian Collective",
         desc: "A premium collaborative space for student researchers and digital creators.",
@@ -174,15 +173,19 @@
         members: [{id: 1, name: "Admin User", role: "Founder", img: "https://i.pravatar.cc/150?u=9"}],
         projects: [{id: 1, title: "Initial Prototype", img: "https://images.unsplash.com/photo-1460925895917-afdab827c52f?auto=format&fit=crop&w=500"}]
     };
+    // --- END MASTER DATA ---
 
-    // Load from memory if available
-    const saved = localStorage.getItem("wisterian_final");
-    if(saved) data = JSON.parse(saved);
+    // Load from local storage immediately if it exists
+    const storedData = localStorage.getItem("wisterian_save");
+    if(storedData) {
+        data = JSON.parse(storedData);
+    }
 
     let temp = {};
+    AOS.init();
 
     function start(isAdmin) {
-        if(isAdmin && prompt("Code:") !== "1234") return;
+        if(isAdmin && prompt("Admin Code:") !== "1234") return;
         if(isAdmin) {
             document.getElementById('adminPanel').style.display = 'block';
             syncAdminForm();
@@ -203,6 +206,7 @@
         const tGrid = document.getElementById('teamGrid');
         const dList = document.getElementById('deleteList');
         tGrid.innerHTML = ""; dList.innerHTML = "<b>Members:</b><br>";
+        
         data.members.forEach(m => {
             tGrid.innerHTML += `<div class="card"><img src="${m.img}" onclick="view('${m.img}')"><h3>${m.name}</h3><p style="color:var(--primary)">${m.role}</p></div>`;
             dList.innerHTML += `<div onclick="removeItem('m', ${m.id})" style="cursor:pointer; color:#ef4444; margin: 3px 0;">[x] ${m.name}</div>`;
@@ -225,24 +229,28 @@
     }
 
     function uploadImg(e, key) {
+        const file = e.target.files[0];
+        if (!file) return;
         const reader = new FileReader();
         reader.onload = () => { temp[key] = reader.result; };
-        reader.readAsDataURL(e.target.files[0]);
+        reader.readAsDataURL(file);
     }
 
     function insertMember() {
         const name = document.getElementById('addMName').value;
         const role = document.getElementById('addMRole').value;
-        if(!name || !temp.newMember) return alert("Need name and image");
+        if(!name || !temp.newMember) return alert("Please provide both name and image.");
         data.members.push({ id: Date.now(), name, role, img: temp.newMember });
-        temp.newMember = null; render();
+        temp.newMember = null;
+        render();
     }
 
     function insertProject() {
         const title = document.getElementById('addPTitle').value;
-        if(!title || !temp.newProject) return alert("Need title and image");
+        if(!title || !temp.newProject) return alert("Please provide both title and image.");
         data.projects.push({ id: Date.now(), title, img: temp.newProject });
-        temp.newProject = null; render();
+        temp.newProject = null;
+        render();
     }
 
     function removeItem(type, id) {
@@ -259,20 +267,32 @@
         data.social.mail = document.getElementById('inEmail').value;
         if(temp.hero) data.hero = temp.hero;
 
-        localStorage.setItem("wisterian_final", JSON.stringify(data));
-        alert("Changes saved to browser memory! Click 'Export' to get your new file.");
-        render();
+        try {
+            localStorage.setItem("wisterian_save", JSON.stringify(data));
+            alert("Progress saved locally! To keep these changes permanent in the file, click 'Export Final File'.");
+            render();
+        } catch(e) {
+            alert("Warning: Local storage is full because of large images. You must click 'Export' now to save your work to a file, otherwise changes will be lost on refresh.");
+        }
     }
 
     function exportCode() {
-        const fullHTML = document.documentElement.outerHTML;
-        const dataString = `let data = ${JSON.stringify(data, null, 8)};`;
-        const finalContent = fullHTML.replace(/let data = \{[\s\S]*?\};/, dataString);
+        // Prepare the new data string
+        const dataString = `let data = ${JSON.stringify(data, null, 4)};`;
+        
+        // Get the entire current HTML
+        let fullHTML = document.documentElement.outerHTML;
+        
+        // Replace the section between the markers with the new data
+        const regex = /\/\/ --- MASTER DATA SECTION ---[\s\S]*?\/\/ --- END MASTER DATA ---/;
+        const newSegment = `// --- MASTER DATA SECTION ---\n    ${dataString}\n    // --- END MASTER DATA ---`;
+        
+        const finalContent = fullHTML.replace(regex, newSegment);
         
         const blob = new Blob([finalContent], { type: 'text/html' });
         const a = document.createElement('a');
         a.href = URL.createObjectURL(blob);
-        a.download = 'index.html';
+        a.download = 'wisterian_updated.html';
         a.click();
     }
 
